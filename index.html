@@ -138,6 +138,17 @@
   .gbtn.plus:hover{filter:brightness(1.08); color:#fff;}
   .gbtn:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
 
+  /* bids pipeline (build = WIP, submit = weekly throughput) */
+  .bidsec{border-top:2px solid var(--line); background:#FBFBFE;}
+  .bidsec-h{font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--muted); padding:10px 16px 2px;}
+  .bidrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 16px;}
+  .bidlabel{font-weight:650; color:var(--ink); font-size:13.5px;}
+  .bidlabel .bidnote{font-family:var(--mono); font-size:10px; color:var(--muted); margin-left:8px; font-weight:400; letter-spacing:.02em;}
+  .wip{display:flex; align-items:center; gap:11px;}
+  .wip .wipn{font-family:var(--mono); font-size:18px; font-weight:700; color:var(--ink); min-width:20px; text-align:center;}
+  .bidsec .goal{background:transparent;}
+
   /* single-line items (recordings, end) */
   .lineitem{display:flex; gap:12px; align-items:flex-start; padding:12px 16px; border-bottom:1px solid var(--line);}
   .lineitem:last-child{border-bottom:0;}
@@ -210,10 +221,12 @@
   // Daily outcome goals — counted manually, reset each day with the checklist.
   const GOALS = [
     {key:'triage',  label:'Solicitations triaged', target:20, link:'BM·1'},
-    {key:'gobids',  label:'GO bids identified',    target:3,  link:'BM·1'},
     {key:'touches', label:'Customer / prospect touches', target:1, link:'BM·5'},
   ];
   function goalDefaults(){ const g={}; GOALS.forEach(x=>g[x.key]=0); return g; }
+  // Bids run on a separate pipeline: building spans days (WIP that carries
+  // over), submitting is the throughput action (counted per week).
+  const SUBMIT_TARGET = 3; // bids submitted, per week
 
   function todayKey(){ return new Date().toLocaleDateString('en-CA'); } // YYYY-MM-DD
   function prettyDate(){ return new Date().toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'}); }
@@ -230,7 +243,7 @@
     return M;
   }
 
-  let state, drift = [];
+  let state, drift = [], pipeline = null;
 
   function freshState(){
     const tasks = {};
@@ -245,6 +258,11 @@
   function saveDay(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>saveJSON('dos:day:'+state.date, state), 250); }
   let driftTimer=null;
   function saveDrift(){ clearTimeout(driftTimer); driftTimer=setTimeout(()=>saveJSON('dos:drift', drift), 350); }
+  let pipeTimer=null;
+  function savePipeline(){ clearTimeout(pipeTimer); pipeTimer=setTimeout(()=>saveJSON('dos:pipeline', pipeline), 250); }
+  // Monday of the current week (YYYY-MM-DD) — key for the weekly submit count.
+  function mondayKey(){ const x=new Date(); const off=(x.getDay()+6)%7; x.setDate(x.getDate()-off); return x.toLocaleDateString('en-CA'); }
+  function rolloverWeek(){ const wk=mondayKey(); if(pipeline.weekKey!==wk){ pipeline.weekKey=wk; pipeline.submitted=0; savePipeline(); } }
 
   async function pruneOldDays(){
     try{
@@ -346,8 +364,7 @@
   }
 
   function renderGoals(){
-    const el = document.getElementById('goals');
-    el.innerHTML = GOALS.map(g=>{
+    const daily = GOALS.map(g=>{
       const n = state.goals[g.key]||0;
       const pct = Math.min(100, Math.round(n/g.target*100));
       const done = n>=g.target;
@@ -363,8 +380,38 @@
         </div>
       </div>`;
     }).join('');
-    const met = GOALS.filter(g=>(state.goals[g.key]||0)>=g.target).length;
-    document.getElementById('goals-hint').textContent = `${met}/${GOALS.length} met`;
+
+    const sub = pipeline.submitted||0;
+    const subPct = Math.min(100, Math.round(sub/SUBMIT_TARGET*100));
+    const subDone = sub>=SUBMIT_TARGET;
+    const bids = `<div class="bidsec">
+      <div class="bidsec-h">Bids · BM·1 → BM·2</div>
+      <div class="bidrow">
+        <div class="bidlabel">In build<span class="bidnote">carries day-to-day</span></div>
+        <div class="wip">
+          <button class="gbtn" data-bdec aria-label="Remove a bid from build">−</button>
+          <span class="wipn">${pipeline.inBuild||0}</span>
+          <button class="gbtn plus" data-binc aria-label="Add a bid to build">+</button>
+        </div>
+      </div>
+      <div class="goal ${subDone?'done':''}">
+        <div class="ghead">
+          <div class="glabel">Bids submitted<span class="glink">this week</span></div>
+          <div class="gcount"><b>${sub}</b> / ${SUBMIT_TARGET}</div>
+        </div>
+        <div class="gbar"><span style="width:${subPct}%"></span></div>
+        <div class="gctrls">
+          <button class="gbtn" data-sdec aria-label="Undo a submission">−</button>
+          <button class="gbtn plus" data-sinc aria-label="Submit a bid (moves one out of build)">+</button>
+        </div>
+      </div>
+    </div>`;
+
+    document.getElementById('goals').innerHTML = daily + bids;
+
+    let met = GOALS.filter(g=>(state.goals[g.key]||0)>=g.target).length;
+    if(subDone) met++;
+    document.getElementById('goals-hint').textContent = `${met}/${GOALS.length+1} met`;
   }
 
   function rowHTML(t){
@@ -459,6 +506,10 @@
     document.querySelectorAll('[data-gdec]').forEach(b=>{
       b.onclick = ()=>{ const k=b.dataset.gdec; state.goals[k]=Math.max(0,(state.goals[k]||0)-1); saveDay(); renderGoals(); wireGoals(); };
     });
+    const binc=document.querySelector('[data-binc]'); if(binc) binc.onclick=()=>{ pipeline.inBuild=(pipeline.inBuild||0)+1; savePipeline(); renderGoals(); wireGoals(); };
+    const bdec=document.querySelector('[data-bdec]'); if(bdec) bdec.onclick=()=>{ pipeline.inBuild=Math.max(0,(pipeline.inBuild||0)-1); savePipeline(); renderGoals(); wireGoals(); };
+    const sinc=document.querySelector('[data-sinc]'); if(sinc) sinc.onclick=()=>{ pipeline.submitted=(pipeline.submitted||0)+1; if(pipeline.inBuild>0) pipeline.inBuild--; savePipeline(); renderGoals(); wireGoals(); };
+    const sdec=document.querySelector('[data-sdec]'); if(sdec) sdec.onclick=()=>{ if((pipeline.submitted||0)>0){ pipeline.submitted--; pipeline.inBuild=(pipeline.inBuild||0)+1; } savePipeline(); renderGoals(); wireGoals(); };
   }
   function wire(){
     document.getElementById('reset').onclick = ()=>{
@@ -502,6 +553,11 @@
     if(!state.goals) state.goals = goalDefaults();
     GOALS.forEach(g=>{ if(state.goals[g.key]==null) state.goals[g.key]=0; });
     drift = (await loadJSON('dos:drift')) || [];
+    pipeline = (await loadJSON('dos:pipeline')) || {inBuild:0, submitted:0, weekKey:mondayKey()};
+    if(pipeline.inBuild==null) pipeline.inBuild=0;
+    if(pipeline.submitted==null) pipeline.submitted=0;
+    if(!pipeline.weekKey) pipeline.weekKey=mondayKey();
+    rolloverWeek();
     render();
   })();
 })();

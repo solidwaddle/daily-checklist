@@ -1,0 +1,423 @@
+<div id="app-root">
+<style>
+  :root{
+    --paper:#EDEFF3; --card:#FFFFFF; --line:#E3E7ED;
+    --ink:#13171F; --body:#39414F; --muted:#79828F;
+    --bm:#4F46E5; --bm-soft:#ECEBFD;
+    --pfg:#0E8C7F; --pfg-soft:#E2F3F0;
+    --build:#B45309; --comms:#15803D; --admin:#475569;
+    --flag:#D97706; --flag-bg:#FFFBEB; --flag-line:#FCD9A2;
+    --ok:#15803D;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box}
+  #app-root{font-family:var(--sans); color:var(--body); background:var(--paper);
+    margin:0; padding:18px; line-height:1.45; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1100px; margin:0 auto;}
+  a{color:inherit}
+
+  /* header */
+  .top{background:var(--ink); color:#fff; border-radius:14px; padding:18px 22px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .top h1{margin:0; font-size:21px; font-weight:800; letter-spacing:-.02em;}
+  .top .sub{font-size:12.5px; color:#B7BECB; margin-top:3px;}
+  .top .right{display:flex; align-items:center; gap:14px;}
+  .datebox{font-family:var(--mono); font-size:12.5px; color:#D8DCE4; text-align:right;}
+  .datebox .d{font-size:14px; color:#fff; font-weight:600;}
+  .btn{font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; text-transform:uppercase;
+    background:transparent; color:#C7CDD8; border:1px solid #3A4150; border-radius:8px;
+    padding:7px 11px; cursor:pointer;}
+  .btn:hover{border-color:#5B6472; color:#fff;}
+  .btn:focus-visible{outline:2px solid var(--bm); outline-offset:2px;}
+
+  /* status strip */
+  .strip{background:var(--card); border:1px solid var(--line); border-radius:12px;
+    margin-top:14px; padding:13px 16px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  .stripgroup{display:flex; align-items:center; gap:9px;}
+  .striplab{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);}
+  .pips{display:flex; gap:5px;}
+  .pip{width:19px; height:19px; border-radius:5px; border:1.6px solid var(--c); background:transparent;
+    cursor:pointer; padding:0; position:relative; transition:transform .12s ease;}
+  .pip.am{background:color-mix(in srgb, var(--c) 22%, white);}
+  .pip.both{background:var(--c);}
+  .pip.flagged{box-shadow:0 0 0 2px var(--flag);}
+  .pip:hover{transform:translateY(-2px);}
+  .pip:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+  .counts{margin-left:auto; display:flex; gap:16px; align-items:center;}
+  .count{font-family:var(--mono); font-size:12px; color:var(--body);}
+  .count b{color:var(--ink);}
+
+  /* layout */
+  .grid{display:grid; grid-template-columns:1fr 320px; gap:16px; margin-top:16px; align-items:start;}
+  @media (max-width:880px){ .grid{grid-template-columns:1fr;} }
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .card + .card{margin-top:16px;}
+  .sec-h{padding:12px 16px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:10px;}
+  .eyebrow{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);}
+  .sec-h h2{margin:0; font-size:15px; font-weight:700; color:var(--ink); letter-spacing:-.01em;}
+  .sec-h .hint{margin-left:auto; font-size:12px; color:var(--muted);}
+
+  /* track band */
+  .band{padding:9px 16px; display:flex; align-items:center; gap:9px; border-bottom:1px solid var(--line);}
+  .band .dot{width:9px;height:9px;border-radius:50%;}
+  .band .name{font-weight:700; font-size:12.5px; letter-spacing:.02em; color:var(--ink);}
+  .band.bm{background:var(--bm-soft);} .band.bm .dot{background:var(--bm);}
+  .band.pfg{background:var(--pfg-soft);} .band.pfg .dot{background:var(--pfg);}
+  .band .protect{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted);}
+
+  /* task row */
+  .row{display:flex; gap:13px; padding:12px 16px; border-bottom:1px solid var(--line); position:relative;}
+  .row:last-child{border-bottom:0;}
+  .row.flagged{background:var(--flag-bg);}
+  .row.flagged::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--flag);}
+  .code{font-family:var(--mono); font-size:11px; color:var(--cc); padding-top:2px; min-width:42px; font-weight:600;}
+  .meat{flex:1; min-width:0;}
+  .meat .t{font-weight:650; color:var(--ink); font-size:14px;}
+  .meat .chk{color:var(--body); font-size:12.7px; margin-top:1px;}
+  .meat .trg{color:var(--muted); font-size:11.7px; margin-top:3px; font-family:var(--mono);}
+  .ctrls{display:flex; align-items:flex-start; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; max-width:188px;}
+
+  .ck{font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; font-weight:600;
+    width:38px; height:30px; border-radius:7px; border:1.5px solid var(--line); background:#fff;
+    color:var(--muted); cursor:pointer; transition:.12s;}
+  .ck:hover{border-color:var(--cc);}
+  .ck.on{background:var(--cc); border-color:var(--cc); color:#fff;}
+  .ck:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+
+  .flag{font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; height:30px; padding:0 9px;
+    border-radius:7px; border:1.5px dashed var(--line); background:#fff; color:var(--muted); cursor:pointer; transition:.12s;}
+  .flag:hover{border-color:var(--flag); color:var(--flag);}
+  .flag.on{background:var(--flag); border-style:solid; border-color:var(--flag); color:#fff;}
+  .flag:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+  .donow{font-family:var(--mono); font-size:10px; letter-spacing:.04em; height:30px; line-height:30px;
+    padding:0 9px; border-radius:7px; background:#F1F3F7; color:var(--muted); white-space:nowrap;}
+
+  .bchip{height:30px; padding:0 9px; border-radius:7px; font-family:var(--mono); font-size:10px;
+    letter-spacing:.06em; font-weight:700; cursor:pointer; border:1px solid transparent; line-height:28px;}
+  .bchip[data-b="build"]{background:#FBEBDC; color:var(--build); border-color:#F3D6BC;}
+  .bchip[data-b="comms"]{background:#E1F2E6; color:var(--comms); border-color:#C6E6CF;}
+  .bchip[data-b="admin"]{background:#E7EBF1; color:var(--admin); border-color:#D2DAE5;}
+
+  /* single-line items (recordings, end) */
+  .lineitem{display:flex; gap:12px; align-items:flex-start; padding:12px 16px; border-bottom:1px solid var(--line);}
+  .lineitem:last-child{border-bottom:0;}
+  .lineitem .meat .t{font-weight:650; color:var(--ink); font-size:14px;}
+  .lineitem .meat .chk{color:var(--body); font-size:12.7px; margin-top:1px;}
+  .ckbox{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--line);background:#fff;
+    cursor:pointer;flex-shrink:0;font-size:15px;color:#fff;transition:.12s;}
+  .ckbox.on{background:var(--ink);border-color:var(--ink);}
+  .ckbox:focus-visible{outline:2px solid var(--bm); outline-offset:2px;}
+
+  textarea{width:100%; border:1px solid var(--line); border-radius:9px; padding:10px 12px;
+    font-family:var(--sans); font-size:13px; color:var(--body); resize:vertical; min-height:60px; background:#FCFCFE;}
+  textarea:focus-visible{outline:2px solid var(--bm); outline-offset:1px; border-color:var(--bm);}
+
+  /* aside */
+  aside{position:sticky; top:18px;}
+  @media (max-width:880px){ aside{position:static;} }
+  .blocks-empty{padding:14px 16px; color:var(--muted); font-size:12.7px;}
+  .bgroup{padding:10px 16px; border-bottom:1px solid var(--line);}
+  .bgroup:last-child{border-bottom:0;}
+  .bgroup .gh{font-family:var(--mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; margin-bottom:7px; display:flex; gap:7px; align-items:center;}
+  .bgroup .gh .sq{width:9px;height:9px;border-radius:2px;}
+  .bgroup[data-b="build"] .gh{color:var(--build);} .bgroup[data-b="build"] .sq{background:var(--build);}
+  .bgroup[data-b="comms"] .gh{color:var(--comms);} .bgroup[data-b="comms"] .sq{background:var(--comms);}
+  .bgroup[data-b="admin"] .gh{color:var(--admin);} .bgroup[data-b="admin"] .sq{background:var(--admin);}
+  .bitem{font-size:12.7px; color:var(--ink); padding:3px 0; display:flex; gap:8px;}
+  .bitem .bc{font-family:var(--mono); font-size:11px; color:var(--muted);}
+
+  .reserve{padding:11px 16px; display:flex; gap:9px; align-items:center; font-size:12.5px; border-top:1px solid var(--line);}
+  .reserve .ind{width:18px;height:18px;border-radius:50%;border:1.6px solid var(--muted); flex-shrink:0; display:grid; place-items:center; font-size:11px; color:#fff;}
+  .reserve.ok .ind{background:var(--ok); border-color:var(--ok);}
+  .reserve.ok{color:var(--ink);}
+
+  .meet{padding:9px 16px; border-bottom:1px solid var(--line); display:flex; gap:11px; font-size:12.7px;}
+  .meet:last-child{border-bottom:0;}
+  .meet .tm{font-family:var(--mono); font-size:11.5px; color:var(--bm); min-width:46px; font-weight:600;}
+  .meet .lbl{color:var(--ink);}
+  .meet-none{padding:13px 16px; color:var(--muted); font-size:12.7px;}
+
+  .driftlist{padding:6px 16px 12px;}
+  .drow{display:flex; gap:9px; font-size:12px; padding:5px 0; border-top:1px dashed var(--line);}
+  .drow .dd{font-family:var(--mono); color:var(--muted); min-width:46px;}
+  .drow .dt{color:var(--body);}
+  .small{font-size:11.5px; color:var(--muted); padding:0 16px 12px; font-family:var(--mono);}
+  .loading{padding:40px; text-align:center; color:var(--muted); font-family:var(--mono); font-size:13px;}
+</style>
+
+<div class="wrap" id="wrap">
+  <div class="loading" id="loading">Loading today’s checklist…</div>
+</div>
+
+<script>
+(function(){
+  const TASKS = [
+    {code:'BM·1', track:'bm', t:'Solicitations', chk:'Scan SAM.gov, Compass, BidMatch, portal feed; run the Triage Playbook.', trg:'flag a GO worth bidding', block:'build'},
+    {code:'BM·2', track:'bm', t:'Proposals in flight', chk:'Any GO in drafting? Check its stage.', trg:'flag if a GO is active', block:'build'},
+    {code:'BM·3', track:'bm', t:'Submissions due', chk:'Anything due today or this week?', trg:'flag if due — cutoff is a tripwire', block:'admin'},
+    {code:'BM·4', track:'bm', t:'Bench', chk:'Green unless a live bid needs a partner.', trg:'flag if a bid needs Mike / a partner', block:'comms'},
+    {code:'BM·5', track:'bm', t:'Customers & prospects', chk:'Who is due for a touch? Inbound or recording action items?', trg:'flag a touch or follow-up', block:'comms'},
+    {code:'BM·6', track:'bm', t:'Prime portals', chk:'Prime-sub call-outs? Unison / Lynx / SEWP / NECO current?', trg:'flag a call-out or lapse', block:'admin'},
+    {code:'BM·7', track:'bm', t:'SAM / gov registration', chk:'Expiry > 60 days? CAGE / UEI / NAICS, reps & certs accurate?', trg:'flag if < 60 days or stale', block:'admin'},
+    {code:'BM·8', track:'bm', t:'Blackmast portal', chk:'silk-sheen-launch loads? API up? Bench partner records clean?', trg:'flag any outage or broken record', block:'admin'},
+    {code:'PFG·1', track:'pfg', t:'Dashboard snapshot', chk:'Send to the distribution list now (~5 min).', trg:'do now — not a flag', block:null},
+    {code:'PFG·2', track:'pfg', t:'Tickets', chk:'Queue depth? Anything urgent?', trg:'flag a non-trivial queue — batch-resolve', block:'admin'},
+    {code:'PFG·3', track:'pfg', t:'AI adoption — Burt / PatriotOne', chk:'Engagement? Demos to schedule? Gaps?', trg:'flag a touch (comms) or a gap (build)', block:'comms'},
+    {code:'PFG·4', track:'pfg', t:'Intranet', chk:'Anything actively broken?', trg:'flag a break, new product, or sign-in sheet', block:'build'},
+  ];
+  const BLOCK_ORDER = ['build','comms','admin'];
+
+  function todayKey(){ return new Date().toLocaleDateString('en-CA'); } // YYYY-MM-DD
+  function prettyDate(){ return new Date().toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'}); }
+
+  function meetingsToday(){
+    const d = new Date().getDay(); // 0 Sun .. 6 Sat
+    const M = [];
+    if(d>=1 && d<=5) M.push(['08:00','Quality Objectives, Sales & Operations']);
+    if(d===1) M.push(['11:00','Weekly Follow-Up — QP-350-1 Go-Live']);
+    if(d===2){ M.push(['10:30','Systems & Technology Strategy (Mario)']); M.push(['15:00','Executive Leadership Cadence (Andrew)']); }
+    if(d===3) M.push(['a.m.','Send AR Aging Reports to AEs']);
+    if(d===4) M.push(['13:00','Patriot ⇄ Burt Sync (AI adoption)']);
+    if(d===5) M.push(['10:30','Patriot ⇄ Syrena (Mario) — to 11:30']);
+    return M;
+  }
+
+  let state, drift = [];
+
+  function freshState(){
+    const tasks = {};
+    TASKS.forEach(t=>{ tasks[t.code] = {am:false, pm:false, flagged:false, block:t.block}; });
+    return {date: todayKey(), recordings:false, tasks, endCapture:false, endGithub:false};
+  }
+
+  // ---------- storage ----------
+  async function loadJSON(key){ try{ const r = await window.storage.get(key,false); return r ? JSON.parse(r.value) : null; }catch(e){ return null; } }
+  async function saveJSON(key,val){ try{ await window.storage.set(key, JSON.stringify(val), false); }catch(e){ /* offline-safe */ } }
+  let saveTimer=null;
+  function saveDay(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>saveJSON('dos:day:'+state.date, state), 250); }
+  let driftTimer=null;
+  function saveDrift(){ clearTimeout(driftTimer); driftTimer=setTimeout(()=>saveJSON('dos:drift', drift), 350); }
+
+  async function pruneOldDays(){
+    try{
+      const r = await window.storage.list('dos:day:', false);
+      if(!r || !r.keys) return;
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-14);
+      for(const k of r.keys){
+        const ds = k.replace('dos:day:','');
+        if(new Date(ds) < cutoff) { try{ await window.storage.delete(k,false); }catch(e){} }
+      }
+    }catch(e){}
+  }
+
+  // ---------- render ----------
+  const wrap = document.getElementById('wrap');
+
+  function render(){
+    wrap.innerHTML = `
+      <div class="top">
+        <div>
+          <h1>Daily Operating System</h1>
+          <div class="sub">Touch all twice — most are green. Flag what needs a block.</div>
+        </div>
+        <div class="right">
+          <div class="datebox"><div class="d">${prettyDate()}</div><span>${state.date}</span></div>
+          <button class="btn" id="reset">Reset day</button>
+        </div>
+      </div>
+
+      <div class="strip" id="strip"></div>
+
+      <div class="grid">
+        <div>
+          <div class="card">
+            <div class="sec-h"><span class="eyebrow">Start</span><h2>Process recordings first</h2></div>
+            <div class="lineitem">
+              <button class="ckbox ${state.recordings?'on':''}" id="rec" aria-label="Recordings processed">${state.recordings?'✓':''}</button>
+              <div class="meat">
+                <div class="t">Process yesterday’s call recordings</div>
+                <div class="chk">Extract action items, owners, dates → route each to its home (pipeline · contractor records · proposal project · tickets · AI-adoption · intranet · capture inbox).</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="sec-h"><span class="eyebrow">Touch-all</span><h2>The checklist</h2><span class="hint">AM &amp; PM</span></div>
+            <div class="band bm"><span class="dot"></span><span class="name">BLACKMAST</span><span class="protect">protected block daily</span></div>
+            <div id="bm-rows"></div>
+            <div class="band pfg"><span class="dot"></span><span class="name">PATRIOT FREIGHT</span></div>
+            <div id="pfg-rows"></div>
+          </div>
+
+          <div class="card">
+            <div class="sec-h"><span class="eyebrow">End</span><h2>Wrap &amp; log</h2></div>
+            <div class="lineitem">
+              <button class="ckbox ${state.endCapture?'on':''}" id="endCapture" aria-label="Capture inbox cleared">${state.endCapture?'✓':''}</button>
+              <div class="meat"><div class="t">Triage the capture inbox to zero</div><div class="chk">Every stray item becomes a block, a logged move, or a deliberate drop.</div></div>
+            </div>
+            <div class="lineitem" style="display:block">
+              <div class="meat" style="margin-bottom:8px"><div class="t">Drift log</div><div class="chk">What slipped today, and why? Feeds Friday’s tune.</div></div>
+              <textarea id="drift" placeholder="One line is enough…">${(driftToday()||'').replace(/</g,'&lt;')}</textarea>
+            </div>
+            <div class="lineitem">
+              <button class="ckbox ${state.endGithub?'on':''}" id="endGithub" aria-label="Pushed to GitHub">${state.endGithub?'✓':''}</button>
+              <div class="meat"><div class="t">Push changes to GitHub</div><div class="chk">Keep the repo as the source of truth.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <aside>
+          <div class="card">
+            <div class="sec-h"><span class="eyebrow">Output</span><h2>Today’s blocks</h2></div>
+            <div id="blocks"></div>
+            <div class="reserve" id="reserve"><span class="ind"></span><span id="reserve-txt"></span></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><span class="eyebrow">Fixed</span><h2>Meetings today</h2></div>
+            <div id="meet"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><span class="eyebrow">Review</span><h2>Recent drift</h2></div>
+            <div class="driftlist" id="driftlist"></div>
+          </div>
+        </aside>
+      </div>
+    `;
+    renderRows();
+    renderStrip();
+    renderBlocks();
+    renderMeetings();
+    renderDriftList();
+    wire();
+  }
+
+  function rowHTML(t){
+    const s = state.tasks[t.code];
+    const isDoNow = t.block===null;
+    const flagCtrl = isDoNow
+      ? `<span class="donow">DO NOW</span>`
+      : `<button class="flag ${s.flagged?'on':''}" data-flag="${t.code}">${s.flagged?'FLAGGED':'⚑ FLAG'}</button>` +
+        (s.flagged ? `<button class="bchip" data-b="${s.block}" data-cycle="${t.code}">${s.block.toUpperCase()}</button>` : '');
+    return `<div class="row ${s.flagged?'flagged':''}" id="row-${t.code}" style="--cc:var(--${t.track})">
+      <div class="code">${t.code}</div>
+      <div class="meat">
+        <div class="t">${t.t}</div>
+        <div class="chk">${t.chk}</div>
+        <div class="trg">${t.trg}</div>
+      </div>
+      <div class="ctrls">
+        <button class="ck ${s.am?'on':''}" data-ck="am" data-code="${t.code}">AM</button>
+        <button class="ck ${s.pm?'on':''}" data-ck="pm" data-code="${t.code}">PM</button>
+        ${flagCtrl}
+      </div>
+    </div>`;
+  }
+  function renderRows(){
+    document.getElementById('bm-rows').innerHTML = TASKS.filter(t=>t.track==='bm').map(rowHTML).join('');
+    document.getElementById('pfg-rows').innerHTML = TASKS.filter(t=>t.track==='pfg').map(rowHTML).join('');
+  }
+
+  function renderStrip(){
+    const grp = (track,label)=>{
+      const pips = TASKS.filter(t=>t.track===track).map(t=>{
+        const s=state.tasks[t.code];
+        const cls = s.am&&s.pm ? 'both' : (s.am||s.pm ? 'am' : 'none');
+        return `<button class="pip ${cls} ${s.flagged?'flagged':''}" style="--c:var(--${track})" data-jump="${t.code}" title="${t.code} ${t.t}" aria-label="${t.code} ${t.t}"></button>`;
+      }).join('');
+      return `<div class="stripgroup"><span class="striplab" style="color:var(--${track})">${label}</span><div class="pips">${pips}</div></div>`;
+    };
+    const am = TASKS.filter(t=>state.tasks[t.code].am).length;
+    const pm = TASKS.filter(t=>state.tasks[t.code].pm).length;
+    document.getElementById('strip').innerHTML = grp('bm','BM') + grp('pfg','PFG') +
+      `<div class="counts">
+         <span class="count">AM <b>${am}</b>/12</span>
+         <span class="count">PM <b>${pm}</b>/12</span>
+       </div>`;
+  }
+
+  function renderBlocks(){
+    const flagged = TASKS.filter(t=>state.tasks[t.code].flagged && t.block!==null);
+    const el = document.getElementById('blocks');
+    if(flagged.length===0){
+      el.innerHTML = `<div class="blocks-empty">Nothing flagged yet. Most days that’s right — the checklist is a safety net, not a to-do generator.</div>`;
+    } else {
+      el.innerHTML = BLOCK_ORDER.map(b=>{
+        const items = flagged.filter(t=>state.tasks[t.code].block===b);
+        if(items.length===0) return '';
+        return `<div class="bgroup" data-b="${b}">
+          <div class="gh"><span class="sq"></span>${b}</div>
+          ${items.map(t=>`<div class="bitem"><span class="bc">${t.code}</span><span>${t.t}</span></div>`).join('')}
+        </div>`;
+      }).join('');
+    }
+    // Blackmast reserved indicator
+    const hasBM = flagged.some(t=>t.track==='bm');
+    const res = document.getElementById('reserve');
+    const txt = document.getElementById('reserve-txt');
+    res.querySelector('.ind').innerHTML = hasBM ? '✓' : '';
+    res.classList.toggle('ok', hasBM);
+    txt.textContent = hasBM ? 'Blackmast has a block today.' : 'Reserve at least one block for Blackmast.';
+  }
+
+  function renderMeetings(){
+    const M = meetingsToday();
+    document.getElementById('meet').innerHTML = M.length
+      ? M.map(m=>`<div class="meet"><span class="tm">${m[0]}</span><span class="lbl">${m[1]}</span></div>`).join('')
+      : `<div class="meet-none">No fixed meetings today. Pure floating-block time.</div>`;
+  }
+
+  function driftToday(){ const e = drift.find(d=>d.date===state.date); return e?e.text:''; }
+  function renderDriftList(){
+    const recent = drift.filter(d=>d.text && d.text.trim()).slice(-5).reverse();
+    const el = document.getElementById('driftlist');
+    el.innerHTML = recent.length
+      ? recent.map(d=>`<div class="drow"><span class="dd">${d.date.slice(5)}</span><span class="dt">${d.text.replace(/</g,'&lt;')}</span></div>`).join('')
+      : `<div class="small" style="padding:0">No drift logged this week yet.</div>`;
+  }
+
+  // ---------- events ----------
+  function wire(){
+    document.getElementById('reset').onclick = ()=>{
+      if(confirm('Reset today’s checks? Your drift log stays.')){ state = freshState(); saveDay(); render(); }
+    };
+    document.getElementById('rec').onclick = (e)=>{ state.recordings=!state.recordings; e.currentTarget.classList.toggle('on'); e.currentTarget.textContent=state.recordings?'✓':''; saveDay(); };
+    document.getElementById('endCapture').onclick = (e)=>{ state.endCapture=!state.endCapture; e.currentTarget.classList.toggle('on'); e.currentTarget.textContent=state.endCapture?'✓':''; saveDay(); };
+    document.getElementById('endGithub').onclick = (e)=>{ state.endGithub=!state.endGithub; e.currentTarget.classList.toggle('on'); e.currentTarget.textContent=state.endGithub?'✓':''; saveDay(); };
+
+    const drm = document.getElementById('drift');
+    drm.oninput = ()=>{
+      let e = drift.find(d=>d.date===state.date);
+      if(!e){ e={date:state.date, text:''}; drift.push(e); }
+      e.text = drm.value; saveDrift();
+    };
+    drm.onblur = renderDriftList;
+
+    document.querySelectorAll('[data-ck]').forEach(b=>{
+      b.onclick = ()=>{ const c=b.dataset.code, k=b.dataset.ck; state.tasks[c][k]=!state.tasks[c][k]; b.classList.toggle('on'); renderStrip(); saveDay(); };
+    });
+    document.querySelectorAll('[data-flag]').forEach(b=>{
+      b.onclick = ()=>{ const c=b.dataset.flag; state.tasks[c].flagged=!state.tasks[c].flagged; saveDay(); renderRows(); renderStrip(); renderBlocks(); wire(); };
+    });
+    document.querySelectorAll('[data-cycle]').forEach(b=>{
+      b.onclick = ()=>{ const c=b.dataset.cycle; const cur=state.tasks[c].block; const i=BLOCK_ORDER.indexOf(cur); state.tasks[c].block=BLOCK_ORDER[(i+1)%3]; saveDay(); renderRows(); renderBlocks(); wire(); };
+    });
+    document.querySelectorAll('[data-jump]').forEach(b=>{
+      b.onclick = ()=>{ const el=document.getElementById('row-'+b.dataset.jump); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.style.transition='background .3s'; const old=el.style.background; el.style.background='#FEF3C7'; setTimeout(()=>el.style.background=old,650); } };
+    });
+  }
+
+  // ---------- init ----------
+  (async function init(){
+    await pruneOldDays();
+    const saved = await loadJSON('dos:day:'+todayKey());
+    state = saved || freshState();
+    // migrate if task set changed
+    TASKS.forEach(t=>{ if(!state.tasks[t.code]) state.tasks[t.code]={am:false,pm:false,flagged:false,block:t.block}; });
+    drift = (await loadJSON('dos:drift')) || [];
+    render();
+  })();
+})();
+</script>
+</div>

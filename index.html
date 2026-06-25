@@ -226,6 +226,7 @@
   // Daily outcome goals — counted manually, reset each day with the checklist.
   const GOALS = [
     {key:'triage',  label:'Solicitations triaged', target:20, link:'BM·1'},
+    {key:'rfi',     label:'RFI / Sources Sought sent', target:9, link:'BM·1'},
     {key:'touches', label:'Customer / prospect touches', target:1, link:'BM·5'},
   ];
   function goalDefaults(){ const g={}; GOALS.forEach(x=>g[x.key]=0); return g; }

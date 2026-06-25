@@ -24,9 +24,14 @@ carries over.
 | Goal | Target | Cadence | Source task |
 |------|--------|---------|-------------|
 | Solicitations triaged | 20 | per day | BM·1 |
+| RFI / Sources Sought sent | 9 | per day | BM·1 |
 | Customer / prospect touches | 1 | per day | BM·5 |
 | **Bids — in build** | — (WIP) | carries day-to-day | BM·1 → BM·2 |
 | **Bids — submitted** | 3 | per week | BM·2 |
+
+RFI / Sources Sought responses are a brand-visibility play — low-commitment
+replies that put Blackmast in front of contracting officers and seed future
+GO opportunities.
 
 ### Bid pipeline
 

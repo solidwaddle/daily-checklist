@@ -117,6 +117,27 @@
   .bchip[data-b="comms"]{background:#E1F2E6; color:var(--comms); border-color:#C6E6CF;}
   .bchip[data-b="admin"]{background:#E7EBF1; color:var(--admin); border-color:#D2DAE5;}
 
+  /* daily goals */
+  .goal{padding:11px 16px; border-bottom:1px solid var(--line);}
+  .goal:last-child{border-bottom:0;}
+  .ghead{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
+  .glabel{font-weight:650; color:var(--ink); font-size:13.5px;}
+  .glabel .glink{font-family:var(--mono); font-size:10.5px; color:var(--muted); margin-left:6px;}
+  .gcount{font-family:var(--mono); font-size:12.5px; color:var(--body); white-space:nowrap;}
+  .gcount b{color:var(--ink); font-size:15px;}
+  .goal.done .gcount b{color:var(--ok);}
+  .goal.done .glabel::after{content:" ✓"; color:var(--ok); font-weight:800;}
+  .gbar{height:7px; border-radius:4px; background:#EEF0F4; margin:8px 0; overflow:hidden;}
+  .gbar span{display:block; height:100%; width:0; background:var(--bm); border-radius:4px; transition:width .2s ease;}
+  .goal.done .gbar span{background:var(--ok);}
+  .gctrls{display:flex; gap:8px; justify-content:flex-end;}
+  .gbtn{font-family:var(--mono); font-size:17px; line-height:1; width:40px; height:32px; border-radius:8px;
+    border:1.5px solid var(--line); background:#fff; color:var(--body); cursor:pointer; transition:.12s;}
+  .gbtn:hover{border-color:var(--bm); color:var(--bm);}
+  .gbtn.plus{background:var(--bm); border-color:var(--bm); color:#fff;}
+  .gbtn.plus:hover{filter:brightness(1.08); color:#fff;}
+  .gbtn:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+
   /* single-line items (recordings, end) */
   .lineitem{display:flex; gap:12px; align-items:flex-start; padding:12px 16px; border-bottom:1px solid var(--line);}
   .lineitem:last-child{border-bottom:0;}
@@ -186,6 +207,14 @@
   ];
   const BLOCK_ORDER = ['build','comms','admin'];
 
+  // Daily outcome goals — counted manually, reset each day with the checklist.
+  const GOALS = [
+    {key:'triage',  label:'Solicitations triaged', target:20, link:'BM·1'},
+    {key:'gobids',  label:'GO bids identified',    target:3,  link:'BM·1'},
+    {key:'touches', label:'Customer / prospect touches', target:1, link:'BM·5'},
+  ];
+  function goalDefaults(){ const g={}; GOALS.forEach(x=>g[x.key]=0); return g; }
+
   function todayKey(){ return new Date().toLocaleDateString('en-CA'); } // YYYY-MM-DD
   function prettyDate(){ return new Date().toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'}); }
 
@@ -206,7 +235,7 @@
   function freshState(){
     const tasks = {};
     TASKS.forEach(t=>{ tasks[t.code] = {am:false, pm:false, flagged:false, block:t.block}; });
-    return {date: todayKey(), recordings:false, tasks, endCapture:false, endGithub:false};
+    return {date: todayKey(), recordings:false, tasks, goals: goalDefaults(), endCapture:false, endGithub:false};
   }
 
   // ---------- storage ----------
@@ -249,6 +278,11 @@
 
       <div class="grid">
         <div>
+          <div class="card">
+            <div class="sec-h"><span class="eyebrow">Targets</span><h2>Today’s goals</h2><span class="hint" id="goals-hint"></span></div>
+            <div id="goals"></div>
+          </div>
+
           <div class="card">
             <div class="sec-h"><span class="eyebrow">Start</span><h2>Process recordings first</h2></div>
             <div class="lineitem">
@@ -302,12 +336,35 @@
         </aside>
       </div>
     `;
+    renderGoals();
     renderRows();
     renderStrip();
     renderBlocks();
     renderMeetings();
     renderDriftList();
     wire();
+  }
+
+  function renderGoals(){
+    const el = document.getElementById('goals');
+    el.innerHTML = GOALS.map(g=>{
+      const n = state.goals[g.key]||0;
+      const pct = Math.min(100, Math.round(n/g.target*100));
+      const done = n>=g.target;
+      return `<div class="goal ${done?'done':''}">
+        <div class="ghead">
+          <div class="glabel">${g.label}<span class="glink">${g.link}</span></div>
+          <div class="gcount"><b>${n}</b> / ${g.target}</div>
+        </div>
+        <div class="gbar"><span style="width:${pct}%"></span></div>
+        <div class="gctrls">
+          <button class="gbtn" data-gdec="${g.key}" aria-label="Decrease ${g.label}">−</button>
+          <button class="gbtn plus" data-ginc="${g.key}" aria-label="Increase ${g.label}">+</button>
+        </div>
+      </div>`;
+    }).join('');
+    const met = GOALS.filter(g=>(state.goals[g.key]||0)>=g.target).length;
+    document.getElementById('goals-hint').textContent = `${met}/${GOALS.length} met`;
   }
 
   function rowHTML(t){
@@ -395,6 +452,14 @@
   }
 
   // ---------- events ----------
+  function wireGoals(){
+    document.querySelectorAll('[data-ginc]').forEach(b=>{
+      b.onclick = ()=>{ const k=b.dataset.ginc; state.goals[k]=(state.goals[k]||0)+1; saveDay(); renderGoals(); wireGoals(); };
+    });
+    document.querySelectorAll('[data-gdec]').forEach(b=>{
+      b.onclick = ()=>{ const k=b.dataset.gdec; state.goals[k]=Math.max(0,(state.goals[k]||0)-1); saveDay(); renderGoals(); wireGoals(); };
+    });
+  }
   function wire(){
     document.getElementById('reset').onclick = ()=>{
       if(confirm('Reset today’s checks? Your drift log stays.')){ state = freshState(); saveDay(); render(); }
@@ -410,6 +475,8 @@
       e.text = drm.value; saveDrift();
     };
     drm.onblur = renderDriftList;
+
+    wireGoals();
 
     document.querySelectorAll('[data-ck]').forEach(b=>{
       b.onclick = ()=>{ const c=b.dataset.code, k=b.dataset.ck; state.tasks[c][k]=!state.tasks[c][k]; b.classList.toggle('on'); renderStrip(); saveDay(); };
@@ -432,6 +499,8 @@
     state = saved || freshState();
     // migrate if task set changed
     TASKS.forEach(t=>{ if(!state.tasks[t.code]) state.tasks[t.code]={am:false,pm:false,flagged:false,block:t.block}; });
+    if(!state.goals) state.goals = goalDefaults();
+    GOALS.forEach(g=>{ if(state.goals[g.key]==null) state.goals[g.key]=0; });
     drift = (await loadJSON('dos:drift')) || [];
     render();
   })();
